@@ -3,10 +3,17 @@ package org.company.util;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.lessThan;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.restassured.response.Response;
-import java.util.List;
-import java.util.Map;
+
+import java.util.*;
+
 import org.assertj.core.api.Assertions;
+import org.company.exception.AutomationException;
+import org.company.restapi.RestService;
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 public class RestApiUtils {
@@ -53,15 +60,61 @@ public class RestApiUtils {
     response.then().assertThat().body(containsString(expectedJsonBody));
   }
 
-  public static JSONObject getResponseAsJson(Response response) {
-    return new JSONObject(response.getBody().asPrettyString());
+  public static JSONObject getResponseAsJsonObject(Response response) {
+    var responseBody = RestService.getResponseBody(response);
+    if (responseBody.startsWith("{")) {
+      return new JSONObject(responseBody);
+    }
+    throw new AutomationException("Invalid json");
   }
 
-  public static String getKeyValueFromJsonResponse(Response response, String jsonKey) {
-    return getResponseAsJson(response).get(jsonKey).toString();
+  public static JSONArray getResponseAsJsonArray(Response response) {
+    var responseBody = RestService.getResponseBody(response);
+    if (responseBody.startsWith("[")) {
+      return new JSONArray(responseBody);
+    }
+    throw new AutomationException("Invalid json");
   }
 
-  public static String getValueForJsonKeyFromResponse(Response response, String jsonKey) {
-    return response.jsonPath().get(jsonKey);
+  public static boolean hasKey(Response response, String jsonKey) {
+    var responseBody = RestService.getResponseBody(response);
+    if (responseBody.startsWith("[")) {
+      return getResponseAsJsonArray(response).toList().stream().anyMatch(je -> {
+          if (je instanceof Map<?,?>) {
+              return ( (Map<?, ?>) je ).containsKey(jsonKey);
+          } else if (je instanceof List<?>) {
+            throw new AutomationException("Nested json array support is not available at the moment");
+          }
+        throw new AutomationException("Invalid json");
+      });
+    } else if (responseBody.startsWith("{")) {
+      return getResponseAsJsonObject(response).has(jsonKey);
+    }
+    throw new AutomationException("Invalid json");
+  }
+
+  public static boolean isValuePresentForKeyInResponse(Response response, String jsonKey) {
+    var responseBody = RestService.getResponseBody(response);
+    if (hasKey(response, jsonKey) && responseBody.startsWith("[")) {
+      return getResponseAsJsonArray(response).toList().stream().anyMatch(je -> {
+        if (je instanceof Map<?,?>) {
+          return Objects.nonNull(((Map<?, ?>) je).get(jsonKey));
+        } else if (je instanceof List<?>) {
+          throw new AutomationException("Nested json array support is not available at the moment");
+        }
+        throw new AutomationException("Invalid json");
+      });
+    } else if (responseBody.startsWith("{")) {
+      return hasKey(response, jsonKey) && !getResponseAsJsonObject(response).isNull(jsonKey);
+    }
+    throw new AutomationException("Invalid json");
+  }
+
+  public static Object getValueForJsonKeyFromResponse(Response response, String jsonKey) {
+    var responseBody = response.getBody();
+    if (responseBody instanceof List<?>) {
+      return responseBody.jsonPath().getList(jsonKey);
+    }
+    return responseBody.jsonPath().get(jsonKey);
   }
 }

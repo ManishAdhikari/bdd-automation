@@ -2,8 +2,13 @@ package org.company.api;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Stream;
+
+import org.assertj.core.api.Assertions;
 import org.company.restapi.RestService;
 import org.company.util.FileUtils;
+import org.company.util.LogUtils;
 import org.company.util.RestApiUtils;
 import org.testng.annotations.Test;
 
@@ -130,5 +135,29 @@ public class ApiTest {
     RestApiUtils.validateResponseHeaders(
         response, Map.of("Content-Type", "application/json; charset=utf-8"));
     RestApiUtils.validateJsonResponseBody(response, "{}");
+  }
+
+  @Test
+  void testShouldCompareJsonKeyValueForResponses(){
+    var responseFromApi1 = RestService.callGetEndpoint(FileUtils.getPropertyValue("json-placeholder-get-users-url"));
+    //RestService.printResponseBody(responseFromApi1);
+    var valueFromApi1 = RestApiUtils.getValueForJsonKeyFromResponse(responseFromApi1,"address.city");
+    LogUtils.debug("Value of address.city in random data api response", valueFromApi1);
+    var responseFromApi2 = RestService.callGetEndpoint(FileUtils.getPropertyValue("random-data-get-users-url"));
+    //RestService.printResponseBody(responseFromApi2);
+    var valueFromApi2 = RestApiUtils.getValueForJsonKeyFromResponse(responseFromApi2,"address.city");
+    LogUtils.debug("Value of address.city in json placeholder api response", valueFromApi2);
+    Assertions.assertThat((List)valueFromApi1).doesNotContain(valueFromApi2);
+  }
+
+  @Test
+  void testShouldGetJsonKeyValueForNestedJsonObject(){
+    var response = RestService.callGetEndpoint(FileUtils.getPropertyValue("tv-maze-get-url"));
+    Assertions.assertThat(RestApiUtils.isValuePresentForKeyInResponse(response, "show")).isTrue();
+    //RestService.printResponseBody(response);
+    var value = RestApiUtils.getValueForJsonKeyFromResponse(response,"show.genres");
+    var values = ((List) value).stream().flatMap(v -> ((List) v).stream()).distinct().toList();
+    LogUtils.debug("Value of show.genres in tv maze api response", values);
+    Assertions.assertThat(values).contains("Adventure");
   }
 }

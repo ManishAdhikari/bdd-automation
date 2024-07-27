@@ -123,7 +123,11 @@ public class RestService {
   }
 
   public static void printResponseBody(Response response) {
-    LogUtils.debug("Response body", response.getBody().asPrettyString());
+    LogUtils.debug("Response body", getResponseBody(response));
+  }
+
+  public static String getResponseBody(Response response) {
+    return response.getBody().asPrettyString();
   }
 
   public static void printResponseHeaders(Response response) {
