@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd">
+<suite name="BDD Automation Framework Suite" verbose="1">
+    <test name="Test the framework">
+        <packages>
+            <package name="org.company.api" />
+            <package name="org.company.database" />
+        </packages>
+    </test> <!-- Test -->
+</suite> <!-- Suite -->

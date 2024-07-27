@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: sqlserver
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=MYDBpass1234
+      - MSSQL_PID=Express
+    ports:
+      - "1433:1433"
+    volumes:
+      - mssql_data:/data/mssql
+      - ./scripts:/data/mssql/scripts/
+    healthcheck:
+      test: [ "CMD-SHELL", "/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P ${MSSQL_SA_PASSWORD:-MYDBpass1234} -Q 'SELECT 1' || exit 1" ]
+      interval: 10s
+      retries: 10
+      start_period: 10s
+      timeout: 3s
+
+  sqlserver.configurator:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: sqlserver-config
+    volumes:
+      - ./scripts:/docker-entrypoint-initdb.d
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    command: >
+      bash -c '
+      /opt/mssql-tools/bin/sqlcmd -S sqlserver -U sa -P ${MSSQL_SA_PASSWORD:-MYDBpass1234} -d master -i docker-entrypoint-initdb.d/create-objects.sql;
+      echo "Database objects created!";
+      /opt/mssql-tools/bin/sqlcmd -S sqlserver -U sa -P ${MSSQL_SA_PASSWORD:-MYDBpass1234} -d master -i docker-entrypoint-initdb.d/load-data.sql;
+      echo "Data inserted into tables!";      
+      '
+
+volumes:
+  mssql_data:

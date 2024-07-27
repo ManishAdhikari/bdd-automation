@@ -1,0 +1,3 @@
+{
+  "sql-1": "SELECT * FROM [hrd].[countries] WHERE region_id = 3"
+}
